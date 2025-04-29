@@ -1,0 +1,33 @@
+{
+  "name": "chat-ai-api",
+  "version": "1.0.0",
+  "description": "Backend for an ai-chat application",
+  "main": "server.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Moerca/AI-ChatAPI.git"
+  },
+  "author": "Carina M.",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/Moerca/AI-ChatAPI/issues"
+  },
+  "homepage": "https://github.com/Moerca/AI-ChatAPI#readme",
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.5.0",
+    "express": "^5.1.0",
+    "openai": "^4.96.0",
+    "stream-chat": "^8.60.0"
+  },
+  "devDependencies": {
+    "@types/cors": "^2.8.17",
+    "@types/express": "^5.0.1",
+    "@types/node": "^22.15.3",
+    "tsx": "^4.19.4",
+    "typescript": "^5.8.3"
+  }
+}
