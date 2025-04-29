@@ -19,8 +19,10 @@
   },
   "homepage": "https://github.com/Moerca/AI-ChatAPI#readme",
   "dependencies": {
+    "@neondatabase/serverless": "^1.0.0",
     "cors": "^2.8.5",
     "dotenv": "^16.5.0",
+    "drizzle-orm": "^0.43.1",
     "express": "^5.1.0",
     "openai": "^4.96.0",
     "stream-chat": "^8.60.0"
@@ -29,6 +31,7 @@
     "@types/cors": "^2.8.17",
     "@types/express": "^5.0.1",
     "@types/node": "^22.15.3",
+    "drizzle-kit": "^0.31.0",
     "tsx": "^4.19.4",
     "typescript": "^5.8.3"
   }
