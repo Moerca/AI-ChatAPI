@@ -19,5 +19,10 @@
     // Skip checking declaration files in node_modules to speed up compilation
     "skipLibCheck": true
   },
+  "include": [
+    "src/**/*.ts",
+    "src/**/*.vue",
+    "src/env.d.ts"
+  ],
   "exclude": ["drizzle.config.ts"]
 }

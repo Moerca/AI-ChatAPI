@@ -29,6 +29,8 @@ const openai = new OpenAI({
 
 // Register user with Stream Chat
 app.post('/register-user', async (reg: Request, res: Response): Promise<any> => {
+   // console.log('Incoming body:', reg.body); 
+   // console.log("DATABASE_URL:", process.env.DATABASE_URL);
     const { name, email } = reg.body || {};
 
     if (!name || !email) {
@@ -40,10 +42,10 @@ app.post('/register-user', async (reg: Request, res: Response): Promise<any> => 
 
         // Check if user exists
         const userResponse = await chatClient.queryUsers({ id: { $eq: userId } });
-        console.log('User query response:', userResponse); // Debugging line
+        //console.log('User query response:', userResponse);
 
         if (!userResponse.users.length) {
-            // Add new user
+            // Add new user to stream
             await chatClient.upsertUser({
                 id: userId,
                 name: name,
@@ -56,7 +58,7 @@ app.post('/register-user', async (reg: Request, res: Response): Promise<any> => 
     const existingUser = await db
     .select()
     .from(users)
-    .where(eq(users.userId, userId))
+    .where(eq(users.userId, userId));
 
     if(!existingUser.length) {
         console.log(`User ${userId} does not exist in the database. Adding them...`);
@@ -82,7 +84,7 @@ app.post('/chat', async (req: Request, res: Response): Promise<any> => {
     try {
         // Verify user exists
         const userResponse = await chatClient.queryUsers({ id: userId });
-        console.log('User query response:', userResponse); // Debugging line
+        //console.log('User query response:', userResponse); 
 
         if (!userResponse.users.length) {
             return res.status(404).json({ error: 'User not found. Please register first' });
@@ -92,53 +94,61 @@ app.post('/chat', async (req: Request, res: Response): Promise<any> => {
         const existingUser = await db
         .select()
         .from(users)
-        .where(eq(users.userId, userId))
+        .where(eq(users.userId, userId));
 
         if(!existingUser.length) {
-            return res.status(404).json({ error: 'User not found, please register first'})
+            return res.status(404).json({ error: 'User not found, please register first'});
         }
 
+        // Fetch users past messages for context
+        const chatHistory = await db
+        .select()
+        .from(chats)
+        .where(eq(chats.userId, userId))
+        .orderBy(chats.createdAt)
+        .limit(10);
+
+        // Format chat history for AI
+        const conversation: ChatCompletionMessageParam[] = chatHistory.
+        flatMap((chat) => [
+            {role: 'user', content: chat.message},
+            {role: 'assistant', content: chat.reply},
+           ]
+        );
+
+        // Add latest user messages to conversation
+        conversation.push({ role: 'user', content: message});
+
         // Send message to OpenAI GPT-4
-        console.log('Sending message to OpenAI:', message);
-        const openAIResponse = await openai.chat.completions.create({
+        const response = await openai.chat.completions.create({
             model: 'gpt-4o-mini',
-            messages: [{ role: 'user', content: message }]
+            messages: conversation as ChatCompletionMessageParam[],
         });
-        console.log('OpenAI response:', openAIResponse); // Debugging line
 
-        const aiMessage: string = openAIResponse.choices[0].message?.content ?? 'No response from AI';
-
+        const aiMessage: string =
+        response.choices[0].message?.content ?? 'No response from AI';
+        
         // Save chat to database
-        await db.insert(chats).values({ userId, message, reply: aiMessage})
+        await db.insert(chats).values({ userId, message, reply: aiMessage});
 
 
         // Create or get channel
         const channel = chatClient.channel('messaging', `chat-${userId}`, {
             name: 'AI Chat',
-            created_by_id: 'ai_bot'
+            created_by_id: 'ai_bot',
         });
 
-        try {
             await channel.create();
-        } catch (err: any) {
-            if (err.message?.includes("already exists")) {
-                // Channel already exists, ignore error
-                console.log('Channel already exists');
-            } else {
-                console.error('Error creating channel:', err);
-                throw err;
-            }
-        }
+            await channel.sendMessage({ text: aiMessage, user_id: 'ai_bot' });
 
-        await channel.sendMessage({ text: aiMessage, user_id: 'ai_bot' });
-
-        res.status(200).json({ reply: aiMessage });
-
-    } catch (error: any) {
-        console.error('Error in chat route:', error?.response?.data || error.message || error);
-        return res.status(500).json({ error: 'Internal Server Error', details: error?.message });
-    }
-});
+            res.status(200).json({ reply: aiMessage });
+        
+        } catch (error) {
+            console.log('Error generating AI response', error);
+            return res.status(500).json({ error: 'Internal Server Error' });
+          }
+        });
+    
 
 // Get chat history for a user
 app.post('/get-messages', async (req: Request, res: Response): Promise<any> =>{
@@ -154,16 +164,13 @@ app.post('/get-messages', async (req: Request, res: Response): Promise<any> =>{
         .from(chats)
         .where(eq(chats.userId, userId));
 
-        res.status(200).json({ messages: chatHistory})
+        res.status(200).json({ messages: chatHistory});
     } catch (error) {
-        console.log('Error fetching chat history', error)
-        res.status(500).json({error: 'Internal Server Error'})
-
+        console.log('Error fetching chat history', error);
+        res.status(500).json({error: 'Internal Server Error'});
     }
-})
+});
 
 const PORT = process.env.PORT || 5000;
 
-app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
-});
+app.listen(PORT, () => console.log(`Server running on port ${PORT}`));
